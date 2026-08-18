@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('node:path');
 const { VARS } = require('./vars.js');
-const categories = ['Combat', 'Blatant', 'Render', 'Utility', 'World', 'Inventory', 'Minigames', 'Legit'];
+const categories = ['Combat', 'Blatant', 'Render', 'Utility', 'World', 'Inventory', 'Legit'];
 
 module.exports = function(basePath, name) {
 	const timeTaken = Date.now();
