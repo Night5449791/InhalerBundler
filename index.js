@@ -7,7 +7,7 @@ const { VARS, makePath } = require('./helpers/vars.js');
 const { Command } = require('@cliffy/command');
 
 function main(isDev, buildMain, buildGames) {
-	console.log('\x1b[33mVape Bundler Started!\nDeveloped & maintained by 7GrandDad (https://youtube.com/c/7GrandDadVape)\x1b[0m');
+	console.log('\x1b[33mInhaler Bundler Started!\x1b[0m');
 
 	const timeTaken = Date.now();
 	const DEST_PATH = isDev ? DEV_PATH : PROD_PATH;
