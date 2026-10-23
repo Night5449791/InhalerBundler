@@ -6,8 +6,6 @@ const {
 	SRC_PATH,
 	DEV_PATH,
 	PROD_PATH,
-	// obsidian repositories are optional, the defaults match this workspace
-	OBSIDIAN_SRC_PATH = '../InhalerObsidian',
 	OBSIDIAN_PATH = './InhalerObsidianCompiled'
 } = require('./config.json');
 const { VARS, makePath, isDevFile } = require('./helpers/vars.js');
@@ -75,21 +73,47 @@ function copyFolder(from, to) {
 
 	let copied = 0;
 	for (const file of fs.readdirSync(from)) {
+		const fullPath = path.join(from, file);
+		if (!fs.statSync(fullPath).isFile() || !file.endsWith('.lua')) {
+			continue;
+		}
+
 		if (isDevFile(file)) {
 			console.log('\x1b[36m[*] Skipped ' + file + ' (dev)\x1b[0m');
 			continue;
 		}
 
-		fs.copyFileSync(path.join(from, file), path.join(to, file));
+		fs.copyFileSync(fullPath, path.join(to, file));
 		copied++;
 	}
 
 	return copied;
 }
 
+// the obsidian sources live inside the same src tree as the vape ones:
+// either src/ (libraries/obsidian.lua at the root) or src/obsidian/
+function resolveObsidianSource() {
+	for (const candidate of [SRC_PATH, path.join(SRC_PATH, 'obsidian')]) {
+		if (fs.existsSync(path.join(candidate, 'libraries', 'obsidian.lua'))) {
+			return candidate;
+		}
+	}
+
+	return null;
+}
+
 // obsidian build: production lua only, so shared/dev variants are never written out
 function buildObsidian(buildMain, buildGames) {
 	console.log('\x1b[33mInhaler Obsidian Bundler Started!\x1b[0m');
+
+	const sourcePath = resolveObsidianSource();
+	if (!sourcePath) {
+		console.error('\x1b[31m[*] No obsidian source found: expected libraries/obsidian.lua under ' + SRC_PATH + ' or ' + path.join(SRC_PATH, 'obsidian') + '\x1b[0m');
+		process.exitCode = 1;
+		return;
+	}
+
+	console.log('\x1b[36m[*] Using obsidian sources from ' + sourcePath + '\x1b[0m');
 
 	const timeTaken = Date.now();
 	VARS.IS_DEV = false;
@@ -107,22 +131,22 @@ function buildObsidian(buildMain, buildGames) {
 	if (buildMain) {
 		console.log('\x1b[36m[*] Copying main files...\x1b[0m');
 		for (const file of ['loader.lua', 'main.lua']) {
-			const source = path.join(OBSIDIAN_SRC_PATH, file);
+			const source = path.join(sourcePath, file);
 			if (fs.existsSync(source)) {
 				fs.copyFileSync(source, path.join(OBSIDIAN_PATH, file));
 			}
 		}
 
 		console.log('\x1b[36m[*] Copying libraries...\x1b[0m');
-		copyFolder(path.join(OBSIDIAN_SRC_PATH, 'libraries'), path.join(OBSIDIAN_PATH, 'libraries'));
+		copyFolder(path.join(sourcePath, 'libraries'), path.join(OBSIDIAN_PATH, 'libraries'));
 
 		console.log('\x1b[36m[*] Copying guis...\x1b[0m');
-		copyFolder(path.join(OBSIDIAN_SRC_PATH, 'guis'), path.join(OBSIDIAN_PATH, 'guis'));
+		copyFolder(path.join(sourcePath, 'guis'), path.join(OBSIDIAN_PATH, 'guis'));
 	}
 
 	if (buildGames) {
 		console.log('\x1b[36m[*] Building obsidian games...\x1b[0m');
-		const GAMES_PATH = path.join(OBSIDIAN_SRC_PATH, 'games');
+		const GAMES_PATH = path.join(sourcePath, 'games');
 
 		if (fs.existsSync(GAMES_PATH)) {
 			for (const game of fs.readdirSync(GAMES_PATH)) {
@@ -164,7 +188,7 @@ function buildObsidian(buildMain, buildGames) {
 		.command(
 			'obsidian',
 			new Command()
-				.description('Build InhalerObsidian with production lua only')
+				.description('Build InhalerObsidian from SRC_PATH with production lua only')
 				.action((args) => buildObsidian(args.mode == 'full' || args.mode == 'main', args.mode == 'full' || args.mode == 'games'))
 		)
 		.parse();
